@@ -350,7 +350,13 @@
 
     <div class="combo-builder">
       <div class="edit-label">Crear nuevo combo</div>
-      <input type="text" id="combo-nombre" placeholder="Nombre del combo (ej: COMBO 10 SACHETS)" style="width:100%;background:var(--bg);border:1.5px solid var(--border2);border-radius:6px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);outline:none;margin-bottom:8px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="combo-nombre" placeholder="Nombre del combo (ej: COMBO 10 SACHETS)" style="flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:6px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);outline:none;">
+        <select id="combo-emoji" style="background:var(--bg);border:1.5px solid var(--border2);border-radius:6px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:16px;color:var(--text);outline:none;cursor:pointer;">
+          <option value="📦">📦 Normal</option>
+          <option value="🚚">🚚 Distribución</option>
+        </select>
+      </div>
       <div class="combo-builder-rows" id="combo-rows"></div>
       <div style="display:flex;gap:8px;margin-top:4px">
         <button class="btn btn-outline" onclick="addComboRow()">+ producto</button>
@@ -585,7 +591,7 @@ function highlight(id) {
 
 function getOpts() {
   const prodOpts   = Object.keys(precios).map(k => `<option value="P:${k}">${k}</option>`).join('');
-  const comboOpts  = combos.map(c => `<option value="C:${c.nombre}">📦 ${c.nombre}</option>`).join('');
+  const comboOpts  = combos.map(c => `<option value="C:${c.nombre}">${c.emoji||'📦'} ${c.nombre}</option>`).join('');
   return `<option value="">— Producto o combo —</option>${comboOpts ? '<optgroup label="Combos">'+comboOpts+'</optgroup>' : ''}<optgroup label="Productos">${prodOpts}</optgroup>`;
 }
 
@@ -1022,6 +1028,7 @@ function refreshComboBuilder() {
 
 function saveCombo() {
   const nombre = document.getElementById('combo-nombre').value.trim().toUpperCase();
+  const emoji  = document.getElementById('combo-emoji')?.value || '📦';
   if (!nombre) { toast('Pon un nombre al combo'); return; }
   const items = [];
   document.querySelectorAll('.combo-builder-row').forEach(row => {
@@ -1030,17 +1037,17 @@ function saveCombo() {
     if (prod && qty > 0) items.push({ producto: prod, cantidad: qty });
   });
   if (!items.length) { toast('Agrega al menos un producto al combo'); return; }
-  // Si estamos editando, eliminar el original primero
   if (editingCombo) combos = combos.filter(c => c.nombre !== editingCombo);
-  combos = combos.filter(c => c.nombre !== nombre); // evitar duplicados
-  combos.push({ nombre, items });
+  combos = combos.filter(c => c.nombre !== nombre);
+  combos.push({ nombre, emoji, items });
   localStorage.setItem('combos', JSON.stringify(combos));
   editingCombo = null;
   document.getElementById('combo-nombre').value = '';
+  if (document.getElementById('combo-emoji')) document.getElementById('combo-emoji').value = '📦';
   document.getElementById('combo-rows').innerHTML = '';
   comboRowC = 0; addComboRow();
   renderCombos();
-  enviarSheets({ accion: 'guardarCombo', nombre: nombre, items: items }, false);
+  enviarSheets({ accion: 'guardarCombo', nombre, emoji, items }, false);
   toast('Combo guardado ✓');
 }
 
@@ -1050,7 +1057,7 @@ function renderCombos() {
   el.innerHTML = combos.map(c=>`
     <div class="combo-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div class="combo-name">📦 ${c.nombre}</div>
+        <div class="combo-name">${c.emoji||'📦'} ${c.nombre}</div>
         <div style="display:flex;gap:6px">
           <button class="btn btn-outline" style="font-size:11px;padding:4px 10px;color:var(--accent);border-color:var(--accent)" onclick="editCombo('${c.nombre}')">Editar</button>
           <button class="btn btn-outline" style="font-size:11px;padding:4px 10px;color:var(--red);border-color:var(--red)" onclick="delCombo('${c.nombre}')">Eliminar</button>
@@ -1084,6 +1091,7 @@ function editCombo(nombre) {
   });
   // NO borrar el combo — solo marcarlo como en edición
   editingCombo = nombre;
+  if (document.getElementById('combo-emoji')) document.getElementById('combo-emoji').value = combo.emoji || '📦';
   document.getElementById('combo-nombre').scrollIntoView({ behavior: 'smooth' });
   toast('Edita el combo y guárdalo');
 }
