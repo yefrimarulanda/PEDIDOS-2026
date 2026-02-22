@@ -431,6 +431,12 @@ function cargarDesdeSheets() {
         combos = data.combos;
         localStorage.setItem('combos', JSON.stringify(combos));
       }
+      // Refrescar selectores de productos en el formulario activo
+      document.querySelectorAll('.prod-row select').forEach(sel => {
+        const val = sel.value;
+        sel.innerHTML = getOpts();
+        if (val) sel.value = val;
+      });
       document.getElementById('sync-indicator').textContent = '● sincronizado';
       document.getElementById('sync-indicator').style.color = 'var(--green)';
     })
