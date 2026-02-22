@@ -412,7 +412,22 @@ document.getElementById('f-fecha').value = hoy();
 addProd();
 addComboRow();
 cargarDesdeSheets();
-setInterval(cargarDesdeSheets, 30000); // auto-sync cada 30 segundos
+setInterval(cargarDesdeSheets, 30000);
+
+// Subir precios locales a Sheets si la hoja está vacía
+function sincronizarPreciosIniciales() {
+  fetch(SHEETS_URL + '?tipo=precios')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.precios || Object.keys(data.precios).length === 0) {
+        // Sheets vacío — subir todos los precios locales
+        Object.entries(precios).forEach(([nombre, precio]) => {
+          enviarSheets({ accion: 'guardarPrecio', nombre, precio }, false);
+        });
+      }
+    }).catch(() => {});
+}
+setTimeout(sincronizarPreciosIniciales, 3000); // auto-sync cada 30 segundos
 
 function cargarDesdeSheets() {
   document.getElementById('sync-indicator').textContent = '● cargando...';
@@ -682,18 +697,24 @@ function limpiar() {
 
 // ── ENVIAR SHEETS ─────────────────────────────
 function enviarSheets(data, esAct) {
-  // Si es pedido, agregar flag de actualización
-  if (data.prods) {
-    data = Object.assign({}, data, { esActualizacion: esAct ? '1' : '0' });
-  }
-  const form = document.createElement('form');
-  form.method = 'POST'; form.action = SHEETS_URL; form.target = 'sheets-iframe'; form.style.display = 'none';
-  const inp = document.createElement('input');
-  inp.type = 'hidden'; inp.name = 'payload'; inp.value = JSON.stringify(data);
-  form.appendChild(inp); document.body.appendChild(form); form.submit(); document.body.removeChild(form);
-  if (data.prods) {
+  // Si es pedido, usar form POST (evita CORS en redirect)
+  if (data.prods !== undefined) {
+    const payload = Object.assign({}, data, { esActualizacion: esAct ? '1' : '0' });
+    const form = document.createElement('form');
+    form.method = 'POST'; form.action = SHEETS_URL; form.target = 'sheets-iframe'; form.style.display = 'none';
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'payload'; inp.value = JSON.stringify(payload);
+    form.appendChild(inp); document.body.appendChild(form); form.submit(); document.body.removeChild(form);
     setTimeout(() => toast(esAct ? '✓ Pedido actualizado en Sheets' : '✓ Pedido enviado a Sheets'), 2000);
+    return;
   }
+  // Para precios/combos usar fetch con no-cors
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'payload=' + encodeURIComponent(JSON.stringify(data))
+  }).catch(() => {});
 }
 
 // ── HISTORIAL ─────────────────────────────────
