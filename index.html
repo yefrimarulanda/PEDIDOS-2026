@@ -412,6 +412,7 @@ document.getElementById('f-fecha').value = hoy();
 addProd();
 addComboRow();
 cargarDesdeSheets();
+setInterval(cargarDesdeSheets, 30000); // auto-sync cada 30 segundos
 
 function cargarDesdeSheets() {
   document.getElementById('sync-indicator').textContent = '● cargando...';
@@ -437,6 +438,10 @@ function cargarDesdeSheets() {
         sel.innerHTML = getOpts();
         if (val) sel.value = val;
       });
+      // Refrescar historial si está visible
+      if (document.getElementById('panel-historial').classList.contains('active')) renderHist();
+      // Refrescar precios/combos si están visibles
+      if (document.getElementById('panel-precios').classList.contains('active')) { renderPrecios(); renderCombos(); }
       document.getElementById('sync-indicator').textContent = '● sincronizado';
       document.getElementById('sync-indicator').style.color = 'var(--green)';
     })
@@ -717,7 +722,7 @@ function renderHist() {
     grupos[key].push(p);
   });
 
-  wrap.innerHTML = Object.entries(grupos).map(([key, grupo]) => {
+  wrap.innerHTML = Object.entries(grupos).sort((a,b) => b[0].localeCompare(a[0])).map(([key, grupo]) => {
     let mesIdx = 0, label = key;
     if (key !== 'Sin fecha') {
       const [y, m] = key.split('-');
