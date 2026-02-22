@@ -614,7 +614,6 @@ function addProd() {
 function onSelChange(pid) {
   const val = document.getElementById(pid + 's').value;
   if (val.startsWith('C:')) {
-    // Es un combo — expandir en múltiples filas
     const comboName = val.slice(2);
     const combo = combos.find(c => c.nombre === comboName);
     if (!combo) return;
@@ -622,18 +621,25 @@ function onSelChange(pid) {
     combo.items.forEach(item => {
       pc++;
       const npid = 'p' + pc;
-      const opts = getOpts();
       const div = document.createElement('div');
       div.className = 'prod-row';
       div.id = npid;
+      // Construir opciones con la correcta preseleccionada
+      const prodOpts = Object.keys(precios).map(k =>
+        `<option value="P:${k}" ${k === item.producto ? 'selected' : ''}>${k}</option>`
+      ).join('');
+      const comboOpts = combos.map(c =>
+        `<option value="C:${c.nombre}">${c.emoji||'📦'} ${c.nombre}</option>`
+      ).join('');
+      const opts = `<option value="">— Producto o combo —</option>${comboOpts ? '<optgroup label="Combos">'+comboOpts+'</optgroup>' : ''}<optgroup label="Productos">${prodOpts}</optgroup>`;
+      const subtotal = (precios[item.producto] || 0) * item.cantidad;
       div.innerHTML = `
         <select onchange="onSelChange('${npid}')" id="${npid}s">${opts}</select>
         <input type="number" min="1" value="${item.cantidad}" id="${npid}q" oninput="calcular()">
-        <div class="sub-val" id="${npid}v">$0</div>
+        <div class="sub-val" id="${npid}v">$${fmtCOP(subtotal)}</div>
         <button class="btn-del-row" onclick="document.getElementById('${npid}').remove();calcular()">×</button>
       `;
       document.getElementById('prod-list').appendChild(div);
-      document.getElementById(npid + 's').value = 'P:' + item.producto;
     });
     calcular();
   } else {
