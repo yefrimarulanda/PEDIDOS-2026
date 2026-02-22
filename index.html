@@ -259,11 +259,35 @@
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxLnaAlIeJg0TYxMn3U8go0of6Zmh1m6LKhYAxwXlMPyJJx1dCXbko7wAUBoLv7OZ6N/exec';
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const PRECIOS_DEFAULT = {
-  'SACHET POWER':1650,'SACHET ROSADO':2000,'BOLSA AZUL':165000,'BOLSA ROSADA':100000,
-  'BOLSA MEGAS':121000,'RETARDANTE':12000,'SHOT':3500,'POWER 36':7200,'LIQUIDO':13200,
-  'LUBRICANTE SB':5000,'PERFUME':13000,'PINK O BLUE':5500,'BLISTER AZUL':23250,'BLISTER ROSADO':20800,'MAX':13000,
+  'SACHET POWER':1650,
+  'SACHET ROSADO':2000,
+  'BOLSA AZUL':165000,
+  'BOLSA ROSADA':100000,
+  'BOLSA MEGAS':121000,
+  'RETARDANTE':12000,
+  'LIQUIDO':13200,
+  'SHOT':3500,
+  'POWER 36':7200,
+  'BLISTER AZUL':23250,
+  'BLISTER ROSADO':20800,
+  'MAX':13000,
+  'LUBRICANTE SABOR':5000,
+  'PERFUME HOMBRE':13000,
+  'PERFUME MUJER':13001,
+  'PINK':5500,
+  'BLUE':5500,
+  'VOLUMINIZANTE':38550,
+  'LIQUIDO PREMIUM':18000,
 };
-let precios = JSON.parse(localStorage.getItem('precios') || JSON.stringify(PRECIOS_DEFAULT));
+// FIX: Si hay nombres viejos en localStorage, limpiar y usar los nuevos
+let preciosGuardados = JSON.parse(localStorage.getItem('precios') || '{}');
+let nombresViejos = ['LUBRICANTE SB','PINK O BLUE','PERFUME'];
+let tieneViejos = nombresViejos.some(n => preciosGuardados[n] !== undefined);
+if (tieneViejos || Object.keys(preciosGuardados).length === 0) {
+  preciosGuardados = PRECIOS_DEFAULT;
+  localStorage.setItem('precios', JSON.stringify(PRECIOS_DEFAULT));
+}
+let precios = preciosGuardados;
 let pedidos = JSON.parse(localStorage.getItem('pedidos') || '[]');
 let pc = 0, editPc = {};
 
@@ -296,8 +320,16 @@ function cargarDesdeSheets() {
         localStorage.setItem('pedidos', JSON.stringify(pedidos));
       }
       if (data.precios && Object.keys(data.precios).length) {
-        precios = data.precios;
+        // FIX CRITICO: forzar que todos los precios sean numeros
+        precios = {};
+        Object.entries(data.precios).forEach(function(entry) {
+          var k = entry[0], v = entry[1];
+          var num = parseFloat(String(v).replace(/\./g,'').replace(/,/g,'.'));
+          if (k && !isNaN(num) && num > 0) precios[k.trim()] = num;
+        });
         localStorage.setItem('precios', JSON.stringify(precios));
+        // DEBUG: ver precios en consola del navegador
+        console.log('PRECIOS CARGADOS:', JSON.stringify(precios));
       }
       // FIX: Actualizar selects con nuevos precios sin perder la seleccion actual
       document.querySelectorAll('.prod-row').forEach(row => {
@@ -306,7 +338,17 @@ function cargarDesdeSheets() {
         if (sel) {
           const val = sel.value;
           sel.innerHTML = getOpts();
-          if (val) sel.value = val;
+          // restaurar seleccion - buscar coincidencia exacta o por toUpperCase
+          if (val) {
+            sel.value = val;
+            if (!sel.value) {
+              // intentar con mayusculas por si el nombre cambio de caso
+              const upper = val.toUpperCase();
+              Array.from(sel.options).forEach(function(opt) {
+                if (opt.value.toUpperCase() === upper) sel.value = opt.value;
+              });
+            }
+          }
         }
       });
       // FIX: Recalcular despues de actualizar precios
