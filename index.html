@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -231,6 +230,10 @@
 
 <nav>
   <div class="logo">⚡ PEDIDOS</div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span id="sync-indicator" style="font-size:11px;color:var(--muted)">● cargando...</span>
+    <button onclick="cargarDesdeSheets();toast('Sincronizando...')" style="background:transparent;border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);cursor:pointer" title="Sincronizar">↻ sync</button>
+  </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showTab('nuevo',this)">Nuevo pedido</button>
     <button class="nav-tab" onclick="showTab('historial',this)">Historial</button>
@@ -389,7 +392,7 @@
 <iframe id="sheets-iframe" name="sheets-iframe" style="display:none"></iframe>
 
 <script>
-const SHEETS_URL  = 'https://script.google.com/macros/s/AKfycby4KUMEG7KeALz0wTRc4ka-_boxAJAEV4vZssmjOSwXhaqrBhocDTnRQGXDcGqRR9EJ/exec';
+const SHEETS_URL  = 'https://script.google.com/macros/s/AKfycbyCiZ9bTp6u2KGLAbKKSvuINVTAKfp8IWILH4iKN6vvL5xuySNISzbFzt-9Vt5Wi_pH/exec';
 const SHEETS_LINK = 'https://docs.google.com/spreadsheets/d/1iFMENazWOUJE5hjlAdaVZU1mGVQxL-0FeEn3oZaWRNk/edit';
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -408,6 +411,34 @@ let pc = 0, comboRowC = 0, editPc = {}, editingCombo = null;
 document.getElementById('f-fecha').value = hoy();
 addProd();
 addComboRow();
+cargarDesdeSheets();
+
+function cargarDesdeSheets() {
+  document.getElementById('sync-indicator').textContent = '● cargando...';
+  document.getElementById('sync-indicator').style.color = 'var(--muted)';
+  fetch(SHEETS_URL + '?tipo=todo')
+    .then(r => r.json())
+    .then(data => {
+      if (data.pedidos && Array.isArray(data.pedidos) && data.pedidos.length) {
+        pedidos = data.pedidos;
+        localStorage.setItem('pedidos', JSON.stringify(pedidos));
+      }
+      if (data.precios && Object.keys(data.precios).length) {
+        precios = data.precios;
+        localStorage.setItem('precios', JSON.stringify(precios));
+      }
+      if (data.combos && Array.isArray(data.combos) && data.combos.length) {
+        combos = data.combos;
+        localStorage.setItem('combos', JSON.stringify(combos));
+      }
+      document.getElementById('sync-indicator').textContent = '● sincronizado';
+      document.getElementById('sync-indicator').style.color = 'var(--green)';
+    })
+    .catch(() => {
+      document.getElementById('sync-indicator').textContent = '● sin conexión';
+      document.getElementById('sync-indicator').style.color = 'var(--muted)';
+    });
+}
 
 // ── TABS ──────────────────────────────────────
 function showTab(id, btn) {
@@ -903,6 +934,7 @@ function delPrecio(idx) {
   delete precios[nombre];
   localStorage.setItem('precios', JSON.stringify(precios));
   renderPrecios();
+  enviarSheets({ accion: 'eliminarPrecio', nombre: nombre }, false);
   toast('Producto eliminado ✓');
 }
 
@@ -910,11 +942,12 @@ function addPrecio() {
   const n = document.getElementById('np-nombre').value.trim().toUpperCase();
   const v = parseFloat(document.getElementById('np-precio').value);
   if (!n||!v) { toast('Completa nombre y precio'); return; }
-  precios[n]=v;
+  precios[n] = v;
   localStorage.setItem('precios', JSON.stringify(precios));
-  document.getElementById('np-nombre').value='';
-  document.getElementById('np-precio').value='';
+  document.getElementById('np-nombre').value = '';
+  document.getElementById('np-precio').value = '';
   renderPrecios();
+  enviarSheets({ accion: 'guardarPrecio', nombre: n, precio: v }, false);
   toast('Precio guardado ✓');
 }
 
@@ -954,6 +987,7 @@ function saveCombo() {
   document.getElementById('combo-rows').innerHTML = '';
   comboRowC = 0; addComboRow();
   renderCombos();
+  enviarSheets({ accion: 'guardarCombo', nombre: nombre, items: items }, false);
   toast('Combo guardado ✓');
 }
 
@@ -1015,6 +1049,7 @@ function delCombo(nombre) {
   combos = combos.filter(c=>c.nombre!==nombre);
   localStorage.setItem('combos', JSON.stringify(combos));
   renderCombos();
+  enviarSheets({ accion: 'eliminarCombo', nombre: nombre }, false);
   toast('Combo eliminado ✓');
 }
 
