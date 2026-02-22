@@ -379,7 +379,7 @@ function highlight(id) {
   setTimeout(() => { el.style.background = 'transparent'; }, 1500);
 }
 function getOpts() {
-  return `<option value="">— Selecciona producto —</option><optgroup label="Productos">${Object.keys(precios).map(k=>`<option value="P:${k}">${k}</option>`).join('')}</optgroup>`;
+  return `<option value="">— Selecciona producto —</option>${Object.keys(precios).map(k=>`<option value="${k}">${k}</option>`).join('')}`;
 }
 function addProd() {
   pc++;
@@ -398,10 +398,9 @@ function calcular() {
   let costo = 0;
   document.querySelectorAll('.prod-row').forEach(row => {
     const pid = row.id;
-    const val = document.getElementById(pid+'s').value;
-    const qty = parseFloat(document.getElementById(pid+'q').value) || 0;
-    const prod = val.startsWith('P:') ? val.slice(2) : '';
-    const sub = (precios[prod]||0) * qty;
+    const prod = document.getElementById(pid+'s').value;
+    const qty  = parseFloat(document.getElementById(pid+'q').value) || 0;
+    const sub  = (precios[prod]||0) * qty;
     document.getElementById(pid+'v').textContent = '$' + fmtCOP(sub);
     costo += sub;
   });
@@ -423,7 +422,7 @@ function guardar() {
   document.querySelectorAll('.prod-row').forEach(row => {
     const pid = row.id, val = document.getElementById(pid+'s').value;
     const qty = parseFloat(document.getElementById(pid+'q').value)||0;
-    const prod = val.startsWith('P:') ? val.slice(2) : '';
+    const prod = val;
     if (prod && qty > 0) prods.push({ producto: prod, cantidad: qty, subtotal: (precios[prod]||0)*qty, obsequio: false });
   });
   if (!prods.length) { toast('Agrega al menos un producto'); return; }
