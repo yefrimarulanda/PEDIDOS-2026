@@ -420,27 +420,28 @@ function cargarDesdeSheets() {
   fetch(SHEETS_URL + '?tipo=todo')
     .then(r => r.json())
     .then(data => {
+      // Pedidos: usar Sheets como fuente de verdad siempre
       if (data.pedidos && Array.isArray(data.pedidos) && data.pedidos.length) {
         pedidos = data.pedidos;
         localStorage.setItem('pedidos', JSON.stringify(pedidos));
       }
+      // Precios: solo actualizar si Sheets tiene datos
       if (data.precios && Object.keys(data.precios).length) {
         precios = data.precios;
         localStorage.setItem('precios', JSON.stringify(precios));
       }
+      // Combos: solo actualizar si Sheets tiene datos
       if (data.combos && Array.isArray(data.combos) && data.combos.length) {
         combos = data.combos;
         localStorage.setItem('combos', JSON.stringify(combos));
       }
-      // Refrescar selectores de productos en el formulario activo
+      // Refrescar UI
       document.querySelectorAll('.prod-row select').forEach(sel => {
         const val = sel.value;
         sel.innerHTML = getOpts();
         if (val) sel.value = val;
       });
-      // Refrescar historial si está visible
       if (document.getElementById('panel-historial').classList.contains('active')) renderHist();
-      // Refrescar precios/combos si están visibles
       if (document.getElementById('panel-precios').classList.contains('active')) { renderPrecios(); renderCombos(); }
       document.getElementById('sync-indicator').textContent = '● sincronizado';
       document.getElementById('sync-indicator').style.color = 'var(--green)';
@@ -680,14 +681,19 @@ function limpiar() {
 }
 
 // ── ENVIAR SHEETS ─────────────────────────────
-function enviarSheets(pedido, esAct) {
-  const data = Object.assign({}, pedido, { esActualizacion: esAct ? '1' : '0' });
+function enviarSheets(data, esAct) {
+  // Si es pedido, agregar flag de actualización
+  if (data.prods) {
+    data = Object.assign({}, data, { esActualizacion: esAct ? '1' : '0' });
+  }
   const form = document.createElement('form');
   form.method = 'POST'; form.action = SHEETS_URL; form.target = 'sheets-iframe'; form.style.display = 'none';
   const inp = document.createElement('input');
   inp.type = 'hidden'; inp.name = 'payload'; inp.value = JSON.stringify(data);
   form.appendChild(inp); document.body.appendChild(form); form.submit(); document.body.removeChild(form);
-  setTimeout(() => toast(esAct ? '✓ Pedido actualizado en Sheets' : '✓ Pedido enviado a Sheets'), 2000);
+  if (data.prods) {
+    setTimeout(() => toast(esAct ? '✓ Pedido actualizado en Sheets' : '✓ Pedido enviado a Sheets'), 2000);
+  }
 }
 
 // ── HISTORIAL ─────────────────────────────────
@@ -729,7 +735,9 @@ function renderHist() {
       mesIdx = parseInt(m) - 1;
       label  = MESES[mesIdx] + ' ' + y;
     }
-    const cards = grupo.map(p => renderCard(p)).join('');
+    // Ordenar pedidos dentro del mes: más recientes primero
+    const grupoOrdenado = grupo.sort((a,b) => (b.id||0) - (a.id||0));
+    const cards = grupoOrdenado.map(p => renderCard(p)).join('');
     return `<div class="month-group">
       <div class="month-label month-${mesIdx}">${label}</div>
       ${cards}
