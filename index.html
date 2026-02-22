@@ -474,7 +474,7 @@ function showTab(id, btn) {
   document.getElementById('panel-' + id).classList.add('active');
   btn.classList.add('active');
   if (id === 'historial') renderHist();
-  if (id === 'precios')   { renderPrecios(); renderCombos(); }
+  if (id === 'precios')   { renderPrecios(); renderCombos(); refreshComboBuilder(); }
   if (id === 'stats')     { initStats(); }
 }
 
@@ -987,6 +987,7 @@ function addPrecio() {
   document.getElementById('np-nombre').value = '';
   document.getElementById('np-precio').value = '';
   renderPrecios();
+  refreshComboBuilder();
   enviarSheets({ accion: 'guardarPrecio', nombre: n, precio: v }, false);
   toast('Precio guardado ✓');
 }
@@ -1005,6 +1006,18 @@ function addComboRow() {
     <button onclick="document.getElementById('${id}').remove()">×</button>
   `;
   document.getElementById('combo-rows').appendChild(div);
+}
+
+function refreshComboBuilder() {
+  // Actualizar todos los selects del builder con los productos actuales
+  document.querySelectorAll('.combo-builder-row').forEach(row => {
+    const sel = document.getElementById(row.id + 's');
+    if (!sel) return;
+    const val = sel.value;
+    const opts = Object.keys(precios).map(k=>`<option value="${k}">${k}</option>`).join('');
+    sel.innerHTML = `<option value="">— Producto —</option>${opts}`;
+    if (val) sel.value = val;
+  });
 }
 
 function saveCombo() {
